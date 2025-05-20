@@ -11,14 +11,17 @@ class PersonBase(BaseSchema):
     surname: Optional[str] = Field(..., max_length=50)
     email: EmailStr = Field(..., max_length=254)
 
+
 class PersonCreate(PersonBase):
     pass
+
 
 class PersonUpdate(BaseSchema):
     first_name: Optional[str] = Field(None, max_length=50)
     last_name: Optional[str] = Field(None, max_length=50)
     surname: Optional[str] = Field(None, max_length=50)
     email: Optional[EmailStr] = Field(None, max_length=254)
+
 
 class PersonResponse(PersonBase):
     pass

@@ -8,8 +8,10 @@ from app.schemas.person_schema import PersonCreate, PersonUpdate, PersonResponse
 class ReaderCreate(BaseSchema):
     person: PersonCreate
 
+
 class ReaderUpdate(BaseSchema):
     person: Optional[PersonUpdate] = None
+
 
 class ReaderResponse(BaseSchema):
     id: int

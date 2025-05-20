@@ -3,10 +3,10 @@ from typing import List, Generic, TypeVar
 from pydantic import BaseModel
 from app.models import Base
 
-
 ModelType = TypeVar('ModelType', bound=Base)
 CreateSchemaType = TypeVar('CreateSchemaType', bound=BaseModel)
 UpdateSchemaType = TypeVar('UpdateSchemaType', bound=BaseModel)
+
 
 class AbstractBaseRepository(ABC, Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     @abstractmethod

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import ForeignKey, DateTime, TIMESTAMP
+from sqlalchemy import ForeignKey, DateTime, TIMESTAMP, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models import Base
@@ -10,15 +10,15 @@ from app.models import Base
 class BorrowedBook(Base):
     book_id: Mapped[int] = mapped_column(ForeignKey('books.id'), nullable=False)
     reader_id: Mapped[int] = mapped_column(ForeignKey('readers.id'), nullable=False)
-    librarian_id: Mapped[str] = mapped_column(ForeignKey('librarians.id'), nullable=False)
+    librarian_id: Mapped[int] = mapped_column(ForeignKey('librarians.id'), nullable=False)
 
     borrowed_date: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.now,
+        TIMESTAMP(timezone=True),
+        default=func.now(),
         nullable=False
     )
     returned_date: Mapped[Optional[datetime]] = mapped_column(
-        DateTime,
+        TIMESTAMP(timezone=True),
         nullable=True
     )
 

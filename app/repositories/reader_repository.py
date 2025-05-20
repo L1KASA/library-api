@@ -1,6 +1,7 @@
 from typing import List, Optional
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models import Reader
@@ -25,46 +26,96 @@ class ReaderRepository(AbstractBaseRepository[Reader, ReaderCreate, ReaderUpdate
             self.db.commit()
             self.db.refresh(reader)
             return reader
+        except IntegrityError as e:
+            self.db.rollback()
+            raise ValueError(f"Database integrity error when creating reader: {str(e)}")
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            raise ValueError(f"Database error when creating reader: {str(e)}")
         except Exception as e:
             self.db.rollback()
-            raise ValueError(f"Reader creation error: {str(e)}")
+            raise ValueError(f"Unexpected error when creating reader: {str(e)}")
 
     def update(self, id: int, data: ReaderUpdate) -> Reader:
-        reader = self.db.get(Reader, id)
-        if reader is None:
-            raise ValueError(f"Reader with id {id} not found")
+        try:
+            reader = self.db.get(Reader, id)
+            if reader is None:
+                raise ValueError(f"Reader with id {id} not found")
 
-        if data.person:
-            person_data = data.person.model_dump(exclude_unset=True)
-            for key, value in person_data.items():
-                setattr(reader, key, value)
+            if data.person:
+                person_data = data.person.model_dump(exclude_unset=True)
+                for key, value in person_data.items():
+                    setattr(reader.person, key, value)
 
-        self.db.commit()
-        self.db.refresh(reader)
-        return reader
+            self.db.commit()
+            self.db.refresh(reader)
+            return reader
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            raise ValueError(f"Database error when updating reader: {str(e)}")
+        except Exception as e:
+            self.db.rollback()
+            raise ValueError(f"Unexpected error when updating reader: {str(e)}")
 
     def delete(self, id: int) -> bool:
-        reader = self.db.get(Reader, id)
-        if reader is None:
-            return False
-
         try:
+            reader = self.db.get(Reader, id)
+            if reader is None:
+                raise ValueError(f"Reader with id {id} not found")
+
+            unreturned_books = [
+                borrowing for borrowing in reader.borrowings
+                if borrowing.returned_date is None
+            ]
+
+            if unreturned_books:
+                raise ValueError("Cannot delete reader with unreturned books")
+
             self.db.delete(reader.person)
             self.db.delete(reader)
             self.db.commit()
             return True
-        except Exception:
+        except ValueError as e:
             self.db.rollback()
-            return False
+            raise
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            raise ValueError(f"Database error when deleting reader: {str(e)}")
+        except Exception as e:
+            self.db.rollback()
+            raise ValueError(f"Unexpected error when deleting reader: {str(e)}")
 
     def get_by_id(self, id: int) -> Optional[Reader]:
-        statement = select(Reader).join(Person).where(Reader.id == id)
-        return self.db.execute(statement).scalar_one_or_none()
+        try:
+            statement = select(Reader).join(Person).where(Reader.id == id)
+            return self.db.execute(statement).scalar_one_or_none()
+        except SQLAlchemyError as e:
+            raise ValueError(f"Database error when getting reader by id: {str(e)}")
+        except Exception as e:
+            raise ValueError(f"Unexpected error when getting reader by id: {str(e)}")
 
     def get_by_email(self, email: str) -> Optional[Reader]:
-        statement = select(Reader).join(Person).where(Person.email == email)
-        return self.db.execute(statement).scalar_one_or_none()
+        try:
+            statement = select(Reader).join(Person).where(Person.email == email)
+            return self.db.execute(statement).scalar_one_or_none()
+        except SQLAlchemyError as e:
+            raise ValueError(f"Database error when getting reader by email: {str(e)}")
+        except Exception as e:
+            raise ValueError(f"Unexpected error when getting reader by email: {str(e)}")
 
     def get_all(self) -> List[Reader]:
-        statement = select(Reader).join(Person)
-        return self.db.execute(statement).scalars().all()
+        try:
+            statement = select(Reader).join(Person)
+            return self.db.execute(statement).scalars().all()
+        except SQLAlchemyError as e:
+            raise ValueError(f"Database error when getting all readers: {str(e)}")
+        except Exception as e:
+            raise ValueError(f"Unexpected error when getting all readers: {str(e)}")
+
+    def reader_exists(self, reader_id: int) -> bool:
+        try:
+            return self.db.get(Reader, reader_id) is not None
+        except SQLAlchemyError as e:
+            raise ValueError(f"Database error when checking reader existence: {str(e)}")
+        except Exception as e:
+            raise ValueError(f"Unexpected error when checking reader existence: {str(e)}")

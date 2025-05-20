@@ -8,4 +8,5 @@ class Reader(Base):
 
     person: Mapped["Person"] = relationship(back_populates="reader", cascade="all, delete")
 
-    borrowings: Mapped[list["BorrowedBook"]] = relationship("BorrowedBook", back_populates="reader")
+    borrowings: Mapped[list["BorrowedBook"]] = relationship("BorrowedBook", back_populates="reader",
+                                                            cascade="all, delete")

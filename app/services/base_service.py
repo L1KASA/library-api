@@ -4,7 +4,6 @@ from app.repositories.base_repository import AbstractBaseRepository
 class BaseService:
     def __init__(self, repository: AbstractBaseRepository):
         pass
-        #self.repository: SqlAlchemy
 
     def create(self):
         pass

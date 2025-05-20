@@ -10,15 +10,17 @@ from dependencies import get_book_service, get_current_user
 
 router = APIRouter(prefix="/books", tags=["Books"])
 
+
 @router.post("/", response_model=BookResponse)
 def create(
-    data: BookCreate,
-    service: BookService = Depends(get_book_service)
+        data: BookCreate,
+        service: BookService = Depends(get_book_service)
 ):
     try:
         return service.create(data)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
 
 @router.put("/{id}", response_model=BookResponse)
 def update(
@@ -32,6 +34,7 @@ def update(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
+
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete(
         id: int,
@@ -40,6 +43,7 @@ def delete(
 ):
     if not service.delete(id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
 
 @router.get("/by-id/{id}", response_model=BookResponse)
 def get_by_id(
@@ -52,10 +56,11 @@ def get_by_id(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
     return book
 
+
 @router.get('/', response_model=List[BookResponse])
 def get_all(
         service: BookService = Depends(get_book_service),
-        #current_user: Librarian = Depends(get_current_user)
+        # current_user: Librarian = Depends(get_current_user)
 ):
     books = service.get_all()
     if not books:

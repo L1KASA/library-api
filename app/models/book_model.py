@@ -11,6 +11,7 @@ class Book(Base):
     year: Mapped[int] = mapped_column()
     isbn: Mapped[str] = mapped_column(String(17), unique=True, nullable=True)
     number_of_copies: Mapped[int] = mapped_column(default=1)
+    description: Mapped[int] = mapped_column(String(300), nullable=True)
 
     borrowings: Mapped[list["BorrowedBook"]] = relationship("BorrowedBook", back_populates="book")
 
@@ -19,3 +20,6 @@ class Book(Base):
         if value < 0:
             raise ValueError("Number of copies cannot be negative")
         return value
+
+    def has_active_borrowings(self) -> bool:
+        return any(b.returned_date is None for b in self.borrowings)

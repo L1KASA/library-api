@@ -3,59 +3,77 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from jose import jwt, JWTError
-from passlib.context import CryptContext
-
-from app.schemas.librarian_schema import LibrarianUpdate
-from app.utills import security
-from app.utills.security import verify_password, get_password_hash
+from pydantic import SecretStr
 
 from app.models import Librarian
 from app.repositories.librarian_repository import LibrarianRepository
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+from app.utils.security import SecuritySettings, PasswordSecurity
 
 
 class AuthService:
-    def __init__(self, repository: LibrarianRepository):
+    def __init__(
+            self,
+            repository: LibrarianRepository,
+            password_security: PasswordSecurity,
+            security_settings: SecuritySettings
+    ):
         self.repository = repository
-        self.SECRET_KEY = os.environ.get("SECRET_KEY")
-        self.ALGORITHM = os.environ.get("ALGORITHM")
-        self.ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES"))
+        self.password_security = password_security
+        self.security_settings = security_settings
 
-    def authenticate(self, email: str, password: str) -> Optional[Librarian]:
-        librarian = self.repository.get_by_email(email)
-        if not librarian:
-            return None
-        if not verify_password(password, librarian.hash_password):
-            return None
-        return librarian
+    def authenticate(self, email: str, password: SecretStr) -> Optional[Librarian]:
+        try:
+            librarian = self.repository.get_by_email(email)
+
+            if not librarian:
+                raise ValueError("Invalid email or password")
+
+            if not self.password_security.verify_password(password, librarian.hash_password):
+                raise ValueError("Invalid email or password")
+
+            return librarian
+        except ValueError as e:
+            raise
+        except Exception as e:
+            raise ValueError(f"Authentication failed: {str(e)}") from e
 
     def create_access_token(self, data: dict) -> str:
-        to_encode = data.copy()
-        expire = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=self.ACCESS_TOKEN_EXPIRE_MINUTES)
+        try:
+            to_encode = data.copy()
+            expire = (datetime.now(timezone.utc).replace(tzinfo=None)
+                      + timedelta(minutes=self.security_settings.access_token_expire_minutes))
 
-        to_encode.update({"exp": expire})
-        return jwt.encode(to_encode, self.SECRET_KEY, algorithm=self.ALGORITHM)
+            to_encode.update({"exp": expire})
+            return jwt.encode(to_encode, self.security_settings.secret_key.get_secret_value(),
+                              algorithm=self.security_settings.algorithm)
+        except Exception as e:
+            raise ValueError(f"Failed to create access token: {str(e)}") from e
 
     def verify_token(self, token: str) -> dict:
         try:
-            payload = jwt.decode(token, self.SECRET_KEY, algorithms=[self.ALGORITHM])
+            payload = jwt.decode(
+                token,
+                self.security_settings.secret_key.get_secret_value(),
+                algorithms=[self.security_settings.algorithm]
+            )
+
+            if "sub" not in payload:
+                raise ValueError("Invalid token - subject is missing")
             return payload
-        except JWTError:
-            return {}
+        except JWTError as e:
+            raise ValueError("Invalid token") from e
+        except Exception as e:
+            raise ValueError("Token verification failed") from e
 
-    def change_password(
-            self, current_password: str,
-            new_password: str,
-            librarian: Librarian) -> Librarian:
-        if not verify_password(current_password, librarian.hash_password):
-            raise ValueError("Current password is incorrect")
+    def change_password(self, current_password: SecretStr, new_password: SecretStr, librarian: Librarian) -> Librarian:
+        try:
+            if not self.password_security.verify_password(current_password, librarian.hash_password):
+                raise ValueError("Current password is incorrect")
 
-        librarian.hash_password = get_password_hash(new_password)
+            hashed_password = self.password_security.get_password_hash(new_password)
 
-        updated_librarian = self.repository.change_password(
-            id=librarian.id,
-            data=LibrarianUpdate(password=new_password)
-        )
-
-        return updated_librarian
+            return self.repository.change_password(librarian.id, hashed_password)
+        except ValueError as e:
+            raise
+        except Exception as e:
+            raise ValueError(f"Failed to change password: {str(e)}") from e

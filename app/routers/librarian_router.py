@@ -10,15 +10,17 @@ from dependencies import get_librarian_service, get_current_user
 
 router = APIRouter(prefix="/librarians", tags=["Librarians"])
 
+
 @router.post("/", response_model=LibrarianResponse)
 def create(
-    data: LibrarianCreate,
-    service: LibrarianService = Depends(get_librarian_service)
+        data: LibrarianCreate,
+        service: LibrarianService = Depends(get_librarian_service)
 ):
     try:
         return service.create(data)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
 
 @router.put("/{id}", response_model=LibrarianResponse)
 def update(
@@ -34,6 +36,7 @@ def update(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
+
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete(
         id: int,
@@ -46,6 +49,7 @@ def delete(
     if not service.delete(id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
+
 @router.get("/by-id/{id}", response_model=LibrarianResponse)
 def get_by_id(
         id: int,
@@ -57,22 +61,23 @@ def get_by_id(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Librarian not found")
     return librarian
 
+
 @router.get('/by-email/{email}', response_model=LibrarianResponse)
 def get_by_email(
         email: str,
         service: LibrarianService = Depends(get_librarian_service),
         current_user: Librarian = Depends(get_current_user)
 ):
-
     librarian = service.get_by_email(email)
     if not librarian:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Librarian with the email not found")
     return librarian
 
+
 @router.get('/', response_model=List[LibrarianResponse])
 def get_all(
         service: LibrarianService = Depends(get_librarian_service),
-        #current_user: Librarian = Depends(get_current_user)
+        # current_user: Librarian = Depends(get_current_user)
 ):
     librarians = service.get_all()
     if not librarians:
